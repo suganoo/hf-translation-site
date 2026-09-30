@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hugging Face Papers 週次ダイジェスト - {{ week.range_label }}</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin:wght@400;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="{{ static_root|default('static') }}/css/style.css">
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <h1 class="masthead__title">Hugging Face Papers 週次ダイジェスト</h1>
+    <div class="masthead__rule"><div></div><div></div></div>
+  </header>
+
+  <div class="layout">
+
+    <nav aria-label="バックナンバー">
+      <div class="nav__label">バックナンバー</div>
+
+      {% for month in nav_months %}
+      <div class="nav__month">{{ month.label }}</div>
+      <ul class="nav__list">
+        {% for w in month.weeks %}
+        <li><a class="nav__link{% if w.is_current %} is-active{% endif %}" href="{{ w.url }}">{{ w.label }}</a></li>
+        {% endfor %}
+      </ul>
+      {% endfor %}
+    </nav>
+
+    <main>
+      <div class="week-header">
+        <div class="week-header__eyebrow">第{{ week.issue_no }}号</div>
+        <h2 class="week-header__range">{{ week.range_label }}</h2>
+        <div class="week-header__note">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>
+          <span><strong>確定日 {{ week.confirmed_label }}</strong> — 全論文が発表から均等に7日間のいいね集計期間を経てから順位を確定しています。速報性より公平な比較を優先し、表示は常に2週間遅れとなります。</span>
+        </div>
+      </div>
+
+      <div class="papers">
+        {% for paper in week.papers %}
+        <article class="paper" style="animation-delay:{{ (loop.index0 * 0.02) | round(2) }}s">
+          <div class="paper__rank">{{ "%02d"|format(loop.index) }}</div>
+          <h3 class="paper__title"><a href="{{ paper.url }}">{{ paper.title }}</a></h3>
+          <div class="paper__highlight">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.4 1 2.5h6c0-1.1.4-1.9 1-2.5A6 6 0 0 0 12 3z"/></svg>
+            <span>{{ paper.highlight_ja }}</span>
+          </div>
+          <div class="paper__meta">{{ paper.authors | join('・') }}<span class="sep">|</span><span class="upvotes">{{ paper.upvotes }}</span> いいね</div>
+          <p class="paper__summary">{{ paper.summary_ja }}</p>
+        </article>
+        {% endfor %}
+      </div>
+
+      <footer class="colophon">
+        論文週報について — Hugging Face Papers のいいね数を毎週集計し、公平な比較のため2週間の遅延を設けて掲載しています。全論文が発表から均等に7日間のいいね集計期間を経てから順位が確定します。見どころコメント・日本語要約はClaude APIによる生成です。
+      </footer>
+    </main>
+
+  </div>
+</div>
+</body>
+</html>
