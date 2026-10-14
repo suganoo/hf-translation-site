@@ -19,7 +19,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 HF_API = "https://huggingface.co/api/daily_papers?date={}"
-MODEL = "claude-opus-5"
+MODEL = "claude-sonnet-5-5"
 TOP_N = 10
 
 HIGHLIGHT_PROMPT = """\
