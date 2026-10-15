@@ -210,9 +210,10 @@ img { max-width: 100%; }
   margin-top: 13px;
   font-size: 0.94rem;
   font-weight: 500;
+  line-height: 1.7;
   color: var(--accent-strong);
 }
-.paper__highlight svg { flex: none; margin-top: 2px; color: var(--accent); }
+.paper__highlight svg { flex: none; margin-top: 5px; color: var(--accent); }
 
 .paper__meta {
   margin-top: 11px;
