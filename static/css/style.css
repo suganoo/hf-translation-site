@@ -13,6 +13,7 @@
   --upvote: #93603A;
   --serif: "Kaisei Tokumin", "Hiragino Mincho ProN", "Yu Mincho", serif;
   --sans: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --measure: 43.7rem;  /* 見どころと要約の共通の行幅(要約 0.95rem × 46字) */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -212,6 +213,7 @@ img { max-width: 100%; }
   font-weight: 500;
   line-height: 1.7;
   color: var(--accent-strong);
+  max-width: var(--measure);
 }
 .paper__highlight svg { flex: none; margin-top: 5px; color: var(--accent); }
 
@@ -232,7 +234,7 @@ img { max-width: 100%; }
   font-size: 0.95rem;
   line-height: 1.9;
   color: var(--text);
-  max-width: 46em;
+  max-width: var(--measure);
 }
 
 /* ---- colophon ---- */
