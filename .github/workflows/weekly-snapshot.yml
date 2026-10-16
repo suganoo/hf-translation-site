@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 0 * * 1'   # 毎週月曜 00:00 UTC
   workflow_dispatch:
+    inputs:
+      weeks:
+        description: '過去週の埋め戻し: 対象週の月曜日をスペース区切りで指定 (例: 2026-08-31 2026-09-07)。空なら通常実行'
+        required: false
+        default: ''
   push:
     branches: [main]      # テンプレート・CSS変更時はサイトの再ビルドのみ
 
@@ -28,9 +33,15 @@ jobs:
 
       - name: Generate weekly snapshot
         if: github.event_name != 'push'
-        run: python generate_snapshot.py
+        run: |
+          if [ -n "$WEEKS" ]; then
+            for w in $WEEKS; do python generate_snapshot.py --week "$w"; done
+          else
+            python generate_snapshot.py
+          fi
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          WEEKS: ${{ inputs.weeks }}
 
       - name: Commit and push data
         if: github.event_name != 'push'

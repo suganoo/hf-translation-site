@@ -135,18 +135,11 @@ img { max-width: 100%; }
   padding-bottom: 22px;
   border-bottom: 1px solid var(--border-strong);
 }
-.week-header__eyebrow {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: var(--accent);
-  text-transform: uppercase;
-}
 .week-header__range {
   font-family: var(--sans);
   font-weight: 700;
   font-size: clamp(1.4rem, 2.6vw, 1.7rem);
-  margin: 8px 0 14px;
+  margin: 0 0 14px;
   font-variant-numeric: tabular-nums;
 }
 .week-header__note {

@@ -51,8 +51,6 @@ def load_weeks(data_dir: Path) -> list[dict]:
             "confirmed_label": jp_date(date.fromisoformat(data["confirmed_at"])),
             "nav_label": f"{start.month}/{start.day} – {end.month}/{end.day}",
         })
-    for i, w in enumerate(weeks, 1):
-        w["issue_no"] = i
     weeks.reverse()  # 新しい週が先頭
     return weeks
 
