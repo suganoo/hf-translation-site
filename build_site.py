@@ -7,6 +7,7 @@
 """
 
 import argparse
+import hashlib
 import json
 import shutil
 import sys
@@ -84,6 +85,8 @@ def main() -> int:
 
     env = Environment(loader=FileSystemLoader(ROOT / "templates"), autoescape=select_autoescape())
     template = env.get_template("week.html")
+    # CSS 更新時にブラウザのキャッシュが残らないよう、内容のハッシュを URL に付ける
+    env.globals["css_version"] = hashlib.sha256((ROOT / "static/css/style.css").read_bytes()).hexdigest()[:8]
 
     if out_dir.exists():
         shutil.rmtree(out_dir)
