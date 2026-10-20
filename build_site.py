@@ -3,6 +3,7 @@
 出力:
     site/index.html              最新週
     site/weeks/{week_start}.html 各週
+    site/papers/{paper_id}.html  論文ごとの解説ページ
     site/static/                 CSS など
 """
 
@@ -41,6 +42,7 @@ def load_weeks(data_dir: Path) -> list[dict]:
     for path in sorted((data_dir / "weekly").glob("*.json")):
         data = json.loads(path.read_text(encoding="utf-8"))
         for p in data["papers"]:
+            p["all_authors"] = p["authors"]  # 解説ページでは全員を表示する
             p["authors"] = short_authors(p["authors"])
         start = date.fromisoformat(data["week_start"])
         end = date.fromisoformat(data["week_end"])
@@ -83,22 +85,27 @@ def main() -> int:
 
     env = Environment(loader=FileSystemLoader(ROOT / "templates"), autoescape=select_autoescape())
     template = env.get_template("week.html")
+    paper_template = env.get_template("paper.html")
     # CSS 更新時にブラウザのキャッシュが残らないよう、内容のハッシュを URL に付ける
     env.globals["css_version"] = hashlib.sha256((ROOT / "static/css/style.css").read_bytes()).hexdigest()[:8]
 
     if out_dir.exists():
         shutil.rmtree(out_dir)
     (out_dir / "weeks").mkdir(parents=True)
+    (out_dir / "papers").mkdir()
     shutil.copytree(ROOT / "static", out_dir / "static")
     (out_dir / ".nojekyll").touch()
 
     # GitHub Pages はリポジトリ名のサブパスで公開されるため、リンクはすべて相対パスにする
     for w in weeks:
-        html = template.render(week=w, nav_months=nav_months(weeks, w, ""), static_root="../static")
+        html = template.render(week=w, nav_months=nav_months(weeks, w, ""), static_root="../static", paper_root="../papers")
         (out_dir / "weeks" / f"{w['week_start']}.html").write_text(html, encoding="utf-8")
+        for rank, paper in enumerate(w["papers"], 1):
+            html = paper_template.render(week=w, paper=paper, rank=rank, static_root="../static")
+            (out_dir / "papers" / f"{paper['id']}.html").write_text(html, encoding="utf-8")
 
     latest = weeks[0]
-    html = template.render(week=latest, nav_months=nav_months(weeks, latest, "weeks/"), static_root="static")
+    html = template.render(week=latest, nav_months=nav_months(weeks, latest, "weeks/"), static_root="static", paper_root="papers")
     (out_dir / "index.html").write_text(html, encoding="utf-8")
 
     print(f"Built {len(weeks)} week(s) into {out_dir}")

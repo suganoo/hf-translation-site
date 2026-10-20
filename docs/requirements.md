@@ -24,7 +24,7 @@ Hugging Face Papers のいいね数上位論文を週次(固定週)で集計し�
 - **重複排除**: upvotes は累積値であり、同一論文が複数日にまたがって出現する。`paper_id` をキーに、最大値の upvotes を採用する(単純合算すると水増しになるため厳禁)
 - 集計後、upvotes 降順で上位10件を抽出
 
-## 4. LLM生成(2種類、別プロンプトで生成)
+## 4. LLM生成(3種類、別プロンプトで生成)
 
 - 使用LLM: Claude API(従量課金。インフラはゼロコストだがLLM APIは別途コストが発生し得る)
 
@@ -38,6 +38,15 @@ Hugging Face Papers のいいね数上位論文を週次(固定週)で集計し�
 ### summary_ja(内容要約、3〜4文・350字程度)
 
 手法・実験・結果を含む要約。
+
+### explainer(論文解説ページ用データ、JSONスキーマ指定の構造化出力)
+
+AIの基礎知識がまだ浅い読者(情報系の大学1〜2年生程度)向けの解説ページの素材。
+
+- **diagram(概要図)**: 課題(problem)→ アプローチ(approach)→ 成果(outcome)の3つの箱。各箱は見出し(head、20字以内)と補足(body、60〜80字)。加えて従来(before)とこの論文(after)の対比を各40字以内で
+- **concepts(基礎知識)**: 要約を読むうえでつまずきそうな一般的な前提概念を2〜3個。用語名(term)、英語表記(term_en)、一般的な説明(body、200〜280字)、たとえ話(analogy)、この論文での使われ方(in_paper、80字以内)
+- 概要図の箱や矢印はテンプレート側で描画し、LLM には文言だけを出力させる(LLM に SVG 等を生成させない)
+- 用語の逆引き(「この用語が出てくる論文」一覧)は作らない
 
 ### キャッシュ
 
@@ -58,14 +67,27 @@ Hugging Face Papers のいいね数上位論文を週次(固定週)で集計し�
       "url": "https://huggingface.co/papers/2509.xxxxx",
       "upvotes": 342,
       "highlight_ja": "既存のスケーリング則の常識を覆す結果",
-      "summary_ja": "小規模言語モデルでも多言語間の推論能力が..."
+      "summary_ja": "小規模言語モデルでも多言語間の推論能力が...",
+      "explainer": {
+        "diagram": {
+          "problem": {"head": "...", "body": "..."},
+          "approach": {"head": "...", "body": "..."},
+          "outcome": {"head": "...", "body": "..."},
+          "before": "...",
+          "after": "..."
+        },
+        "concepts": [
+          {"term": "...", "term_en": "...", "body": "...", "analogy": "...", "in_paper": "..."}
+        ]
+      }
     }
   ]
 }
 ```
 
 - **保存先**: `data/weekly/{week_start}.json`(1週間1ファイル、リポジトリにコミット)
-- **要約キャッシュ**: `data/summary_cache.json`(論文ID → highlight_ja / summary_ja)
+- **要約キャッシュ**: `data/summary_cache.json`(論文ID → highlight_ja / summary_ja / explainer)
+- **既存週への explainer 追加**: `python generate_snapshot.py --backfill-explainers`(ワークフローの手動実行では `backfill_explainers` にチェック)
 
 ## 6. バッチ処理ロジック(疑似コード)
 
@@ -161,6 +183,8 @@ jobs:
   3. 見どころコメント(highlight_ja) — 電球アイコン + アクセントカラーで要約と視覚的に区別
   4. 著者名・upvotes数(小さめ、ミュートカラー)
   5. 日本語要約(summary_ja)
+- **論文タイトルのリンク先**: 論文ごとの解説ページ `papers/{id}.html`(新しいタブで開く)。HF Papers・arXiv へのリンクは解説ページ側に置く
+- **解説ページの構成順(上から下へ)**: 週ページへの戻りリンク → 順位・タイトル・著者・upvotes・HF/arXiv リンク・見どころコメント → 概要図(課題 → アプローチ → 成果、従来との対比)→ 基礎知識2〜3個(一般的な説明・たとえ話・この論文では)→ 日本語要約
 - **透明性の担保**: 各週ページに「確定日」を明記し、2週間遅延の設計であることを利用者に示す
 - **カラー**: オフホワイト系ベース(`#FAFAF8`)、アクセントは落ち着いた青緑系(`#3B5A6B`寄り)。upvotes数値は煽らない温かみのある色(茶系)を使用
 

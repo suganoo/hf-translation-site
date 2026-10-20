@@ -7,9 +7,9 @@ Hugging Face Papers のいいね数トップ10を週ごとに集計し、日本�
 
 | ファイル | 役割 |
 |---|---|
-| `generate_snapshot.py` | HF API から対象週の論文を取得し、Claude API で日本語化して `data/weekly/{週}.json` に保存 |
-| `build_site.py` | `data/weekly/*.json` から `site/` に静的HTMLを生成 |
-| `templates/week.html`, `static/css/style.css` | ページのテンプレートとデザイン |
+| `generate_snapshot.py` | HF API から対象週の論文を取得し、Claude API で日本語の見どころ・要約・解説(概要図と基礎知識)を生成して `data/weekly/{週}.json` に保存 |
+| `build_site.py` | `data/weekly/*.json` から `site/` に週ページと論文ごとの解説ページを生成 |
+| `templates/week.html`, `templates/paper.html`, `static/css/style.css` | ページのテンプレートとデザイン |
 | `.github/workflows/weekly-snapshot.yml` | 毎週月曜に上記2つを実行し GitHub Pages に公開 |
 
 ## ローカルで動かす
@@ -22,6 +22,7 @@ pip install -r requirements.txt
 export ANTHROPIC_API_KEY=sk-ant-...
 python generate_snapshot.py                    # 確定可能な最新週を生成
 python generate_snapshot.py --week 2026-09-07  # 過去の週を埋め戻す(月曜日を指定)
+python generate_snapshot.py --backfill-explainers  # 既存の全週に解説データを追加
 python build_site.py                           # site/ にHTMLを出力
 python -m http.server -d site 8000             # http://localhost:8000 で確認
 ```

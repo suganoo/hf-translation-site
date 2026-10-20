@@ -43,7 +43,7 @@
         {% for paper in week.papers %}
         <article class="paper" style="animation-delay:{{ (loop.index0 * 0.02) | round(2) }}s">
           <div class="paper__rank">{{ "%02d"|format(loop.index) }}</div>
-          <h3 class="paper__title"><a href="{{ paper.url }}">{{ paper.title }}</a></h3>
+          <h3 class="paper__title"><a href="{{ paper_root }}/{{ paper.id }}.html" target="_blank" rel="noopener">{{ paper.title }}</a></h3>
           <div class="paper__highlight">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.4 1 2.5h6c0-1.1.4-1.9 1-2.5A6 6 0 0 0 12 3z"/></svg>
             <span>{{ paper.highlight_ja }}</span>
@@ -55,7 +55,7 @@
       </div>
 
       <footer class="colophon">
-        論文週報について — Hugging Face Papers のいいね数を毎週集計し、公平な比較のため2週間の遅延を設けて掲載しています。全論文が発表から均等に7日間のいいね集計期間を経てから順位が確定します。見どころコメント・日本語要約はClaude APIによる生成です。
+        論文週報について — Hugging Face Papers のいいね数を毎週集計し、公平な比較のため2週間の遅延を設けて掲載しています。全論文が発表から均等に7日間のいいね集計期間を経てから順位が確定します。見どころコメント・日本語要約・論文解説ページはClaude APIによる生成です。
       </footer>
     </main>
 

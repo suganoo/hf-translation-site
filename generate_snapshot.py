@@ -8,6 +8,7 @@ data/weekly/{week_start}.json に保存する。
     python generate_snapshot.py                    # 通常実行(確定可能な週を自動算出)
     python generate_snapshot.py --week 2026-08-03  # 指定週を生成(過去分の埋め戻し用)
     python generate_snapshot.py --skip-llm         # LLM を呼ばずに動作確認(要約はダミー、キャッシュ保存なし)
+    python generate_snapshot.py --backfill-explainers  # 既存の全週に解説ページ用データ(概要図・基礎知識)を追加
 """
 
 import argparse
@@ -19,6 +20,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 HF_API = "https://huggingface.co/api/daily_papers?date={}"
+HF_PAPER_API = "https://huggingface.co/api/papers/{}"
 MODEL = "claude-sonnet-5-5"
 TOP_N = 10
 
@@ -65,6 +67,97 @@ SUMMARY_PROMPT = """\
 """
 
 
+EXPLAINER_PROMPT = """\
+以下の論文について、AIの基礎知識がまだ浅い読者(情報系の大学1〜2年生程度)向けの解説ページの素材を作ってください。
+出力は指定のJSONスキーマに従ってください。
+
+## 1. 概要図 (diagram)
+「課題 → アプローチ → 成果」の3つの箱と、従来との対比1行で構成する図の文言。
+- problem: 従来の何が困っていたか / approach: この論文がどう解いたか / outcome: 何ができるようになったか・何が分かったか
+- 各箱の head は20字以内の見出し、body は60〜80字の補足
+- before / after は「従来」と「この論文」の違いを対比で書く。各40字以内
+- アブストラクトに書かれている事実の範囲で書く。数値を入れるなら図全体で1つまで
+
+## 2. 基礎知識 (concepts) をちょうど2〜3個
+- この論文の要約を読むうえで読者が最もつまずきそうな前提概念を選び、基礎的なものから順に並べる
+- 論文固有の手法名は選ばず、他の論文でも出てくる一般的な概念を選ぶ。「機械学習」「ニューラルネットワーク」のように易しすぎる概念も避ける
+- term: 日本語の用語名 / term_en: 英語表記
+- body: 一般的な説明を200〜280字で。何のためのものか、どう動くか、何が難しいかを書く
+- analogy: 身近なたとえを1〜2文、60字程度で
+- in_paper: この論文ではその概念がどう使われる・関係するかを1〜2文、80字以内で
+- body と analogy は論文に依存しない一般的な知識として書き、in_paper はアブストラクトの事実の範囲で書く
+
+## 文体
+- だ・である調。専門用語は初出で簡単に言い換える
+- 「画期的」「革新的」のような誇張表現は使わない
+
+基礎知識の良い例:
+term: エージェントハーネス / term_en: Agent Harness
+body: 大規模言語モデル(LLM)そのものは、文章を受け取って文章を返すことしかできない。ファイルを読む、Web を検索する、コードを実行して結果を確かめる、うまくいくまで繰り返す、といった「仕事をこなす動き」は、モデルの外側にあるプログラムが担っている。この外側の制御プログラムをハーネスと呼ぶ。同じモデルでも、ハーネスの出来によってタスクの成功率は大きく変わる。
+analogy: たとえるなら、モデルは馬で、ハーネスは馬具と手綱。力の強い馬でも、馬具が合っていなければ荷車はうまく引けない。
+in_paper: ハーネスを人が設計するのをやめ、モデルと分野に合わせて自動で作り、使いながら改善していく対象として扱っている。
+
+タイトル: {title}
+
+アブストラクト:
+{abstract}
+"""
+
+_BOX = {
+    "type": "object",
+    "properties": {"head": {"type": "string"}, "body": {"type": "string"}},
+    "required": ["head", "body"],
+    "additionalProperties": False,
+}
+EXPLAINER_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "diagram": {
+            "type": "object",
+            "properties": {
+                "problem": _BOX,
+                "approach": _BOX,
+                "outcome": _BOX,
+                "before": {"type": "string"},
+                "after": {"type": "string"},
+            },
+            "required": ["problem", "approach", "outcome", "before", "after"],
+            "additionalProperties": False,
+        },
+        "concepts": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "term": {"type": "string"},
+                    "term_en": {"type": "string"},
+                    "body": {"type": "string"},
+                    "analogy": {"type": "string"},
+                    "in_paper": {"type": "string"},
+                },
+                "required": ["term", "term_en", "body", "analogy", "in_paper"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["diagram", "concepts"],
+    "additionalProperties": False,
+}
+
+DUMMY_EXPLAINER = {
+    "diagram": {
+        "problem": {"head": "(課題 未生成)", "body": "--skip-llm で実行"},
+        "approach": {"head": "(アプローチ 未生成)", "body": "--skip-llm で実行"},
+        "outcome": {"head": "(成果 未生成)", "body": "--skip-llm で実行"},
+        "before": "(従来 未生成)",
+        "after": "(この論文 未生成)",
+    },
+    "concepts": [
+        {"term": "(用語 未生成)", "term_en": "Dummy", "body": "(説明 未生成)", "analogy": "(たとえ 未生成)", "in_paper": "(未生成)"},
+    ],
+}
+
+
 def get_confirmable_week_start(today: date) -> date:
     this_monday = today - timedelta(days=today.weekday())
     return this_monday - timedelta(weeks=2)
@@ -106,11 +199,14 @@ def collect_top_papers(week_start: date) -> list[dict]:
     return sorted(papers.values(), key=lambda x: x["upvotes"], reverse=True)[:TOP_N]
 
 
-def ask_claude(client, prompt: str) -> str:
+def ask_claude(client, prompt: str, schema: dict | None = None) -> str:
+    output_config = {"effort": "medium"}
+    if schema:
+        output_config["format"] = {"type": "json_schema", "schema": schema}
     response = client.beta.messages.create(
         model=MODEL,
         max_tokens=16000,
-        output_config={"effort": "medium"},
+        output_config=output_config,
         # 安全性分類器で拒否された場合はサーバー側で自動的に別モデルへフォールバックする
         betas=["server-side-fallback-2026-07-01"],
         fallbacks="default",
@@ -131,6 +227,37 @@ def generate_highlight_and_summary(client, title: str, abstract: str) -> dict:
     }
 
 
+def generate_explainer(client, title: str, abstract: str) -> dict:
+    text = ask_claude(client, EXPLAINER_PROMPT.format(title=title, abstract=abstract), EXPLAINER_SCHEMA)
+    explainer = json.loads(text)
+    explainer["concepts"] = explainer["concepts"][:3]
+    return explainer
+
+
+def fetch_abstract(paper_id: str) -> str:
+    return fetch_json(HF_PAPER_API.format(paper_id)).get("summary", "")
+
+
+def backfill_explainers(client, data_dir: Path, cache: dict, cache_path: Path) -> None:
+    """既存の週次スナップショットのうち explainer が無い論文に解説データを追加する。"""
+    for snapshot_path in sorted((data_dir / "weekly").glob("*.json")):
+        snapshot = load_json(snapshot_path, None)
+        changed = False
+        for p in snapshot["papers"]:
+            if "explainer" in p:
+                continue
+            entry = cache.setdefault(p["id"], {})
+            if "explainer" not in entry:
+                print(f"  [{snapshot_path.stem}] generating explainer: {p['title'][:60]}")
+                entry["explainer"] = generate_explainer(client, p["title"], fetch_abstract(p["id"]))
+                save_json(cache_path, cache)
+            p["explainer"] = entry["explainer"]
+            changed = True
+        if changed:
+            save_json(snapshot_path, snapshot)
+            print(f"Updated {snapshot_path}")
+
+
 def load_json(path: Path, default):
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
@@ -147,7 +274,15 @@ def main() -> int:
     parser.add_argument("--week", type=date.fromisoformat, help="対象週の月曜日 (YYYY-MM-DD)")
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
     parser.add_argument("--skip-llm", action="store_true", help="LLM を呼ばずダミー文を入れる(動作確認用)")
+    parser.add_argument("--backfill-explainers", action="store_true",
+                        help="既存の全週に解説ページ用データ(概要図・基礎知識)を追加する")
     args = parser.parse_args()
+
+    if args.backfill_explainers:
+        import anthropic
+        cache_path = args.data_dir / "summary_cache.json"
+        backfill_explainers(anthropic.Anthropic(), args.data_dir, load_json(cache_path, {}), cache_path)
+        return 0
 
     today = date.today()
     week_start = args.week or get_confirmable_week_start(today)
@@ -176,19 +311,22 @@ def main() -> int:
         client = anthropic.Anthropic()  # ANTHROPIC_API_KEY を環境変数から読む
 
     for rank, p in enumerate(top, 1):
-        if p["id"] not in cache:
-            if args.skip_llm:
-                cache_entry = {"highlight_ja": "(見どころ未生成)", "summary_ja": "(要約未生成: --skip-llm で実行)"}
-            else:
-                print(f"  [{rank}] generating: {p['title'][:60]}")
-                cache_entry = generate_highlight_and_summary(client, p["title"], p["summary_en"])
-                cache[p["id"]] = cache_entry
-                save_json(cache_path, cache)  # 途中で失敗しても生成済み分は残す
+        if args.skip_llm:
+            cache_entry = cache.get(p["id"]) or {"highlight_ja": "(見どころ未生成)", "summary_ja": "(要約未生成: --skip-llm で実行)"}
+            cache_entry = {"explainer": DUMMY_EXPLAINER, **cache_entry}
         else:
-            cache_entry = cache[p["id"]]
-            print(f"  [{rank}] cached: {p['title'][:60]}")
+            cache_entry = cache.setdefault(p["id"], {})
+            if "summary_ja" not in cache_entry:
+                print(f"  [{rank}] generating: {p['title'][:60]}")
+                cache_entry.update(generate_highlight_and_summary(client, p["title"], p["summary_en"]))
+                save_json(cache_path, cache)  # 途中で失敗しても生成済み分は残す
+            if "explainer" not in cache_entry:
+                print(f"  [{rank}] generating explainer: {p['title'][:60]}")
+                cache_entry["explainer"] = generate_explainer(client, p["title"], p["summary_en"])
+                save_json(cache_path, cache)
         p["highlight_ja"] = cache_entry["highlight_ja"]
         p["summary_ja"] = cache_entry["summary_ja"]
+        p["explainer"] = cache_entry["explainer"]
         del p["summary_en"]
 
     save_json(snapshot_path, {

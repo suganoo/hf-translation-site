@@ -241,6 +241,153 @@ img { max-width: 100%; }
   max-width: 46em;
 }
 
+/* ==== 論文解説ページ (templates/paper.html) ==== */
+.page--narrow { max-width: 860px; }
+
+.masthead--compact { padding-top: 32px; padding-bottom: 0; }
+.masthead--compact .masthead__title {
+  font-size: 1.05rem;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+.masthead--compact .masthead__title a { color: inherit; text-decoration: none; }
+.masthead--compact .masthead__title a:hover { color: var(--accent-strong); }
+.masthead--compact .masthead__rule { margin-top: 18px; }
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 28px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.back:hover { color: var(--accent-strong); }
+
+.ex-head { padding: 18px 0 26px; border-bottom: 1px solid var(--border-strong); }
+.ex-head__eyebrow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.ex-head__rank {
+  font-family: var(--serif);
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.ex-head__title {
+  margin: 6px 0 0;
+  font-family: var(--serif);
+  font-size: clamp(1.4rem, 3vw, 1.75rem);
+  font-weight: 700;
+  line-height: 1.45;
+  text-wrap: balance;
+}
+.ex-head__meta {
+  margin-top: 12px;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+.ex-head__meta .upvotes { color: var(--upvote); font-weight: 700; font-variant-numeric: tabular-nums; }
+.ex-head__meta .sep { color: var(--text-faint); margin: 0 8px; }
+.ex-head .paper__highlight { margin-top: 20px; }
+
+.ex-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.ex-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+.ex-links a:hover { background: var(--surface-active); }
+.ex-links a:focus-visible, .back:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.ex-section { padding: 34px 0 6px; }
+.ex-section + .ex-section { border-top: 1px solid var(--border); margin-top: 28px; }
+.ex-section__label {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--text-faint);
+}
+.ex-section__title { margin: 0; font-family: var(--serif); font-size: 1.25rem; font-weight: 700; }
+.ex-section__lead { margin: 8px 0 0; font-size: 0.86rem; line-height: 1.7; color: var(--text-muted); }
+
+/* 概要図: 課題 → アプローチ → 成果 */
+.flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr) 28px minmax(0, 1fr);
+  margin-top: 22px;
+}
+.flow__step {
+  min-width: 0;
+  padding: 16px 16px 18px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+}
+.flow__step.is-approach { background: var(--surface-active); border-color: var(--accent); }
+.flow__tag { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; color: var(--text-muted); }
+.is-approach .flow__tag { color: var(--accent-strong); }
+.flow__head { margin: 6px 0 0; font-family: var(--serif); font-size: 1.02rem; font-weight: 700; line-height: 1.5; }
+.flow__body { margin: 8px 0 0; font-size: 0.86rem; line-height: 1.75; }
+.flow__arrow { display: flex; align-items: center; justify-content: center; color: var(--accent); }
+.flow__arrow svg { width: 20px; height: 20px; }
+
+.contrast {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px 16px;
+  margin: 16px 0 0;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+.contrast dt { font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.contrast dt.is-new { color: var(--accent-strong); }
+.contrast dd { margin: 0; min-width: 0; }
+
+/* 基礎知識 */
+.concepts { margin-top: 10px; }
+.concept { padding: 24px 0; border-top: 1px solid var(--border); max-width: var(--measure); }
+.concept:first-child { border-top: none; }
+.concept__term { margin: 0; font-family: var(--serif); font-size: 1.12rem; font-weight: 700; line-height: 1.5; }
+.concept__en { margin-left: 8px; font-family: var(--sans); font-size: 0.8rem; font-weight: 500; color: var(--text-muted); }
+.concept__body { margin: 10px 0 0; font-size: 0.95rem; line-height: 1.9; }
+.concept__analogy {
+  margin: 12px 0 0;
+  padding-left: 14px;
+  border-left: 2px solid var(--border-strong);
+  font-size: 0.88rem;
+  line-height: 1.8;
+  color: var(--text-muted);
+}
+.concept__here { margin-top: 14px; padding: 10px 14px; background: var(--surface-active); font-size: 0.88rem; line-height: 1.75; }
+.concept__here strong { color: var(--accent-strong); margin-right: 6px; }
+
+@media (max-width: 680px) {
+  .page--narrow { padding-left: 16px; padding-right: 16px; }
+  .flow { grid-template-columns: minmax(0, 1fr); }
+  .flow__arrow { height: 30px; }
+  .flow__arrow svg { transform: rotate(90deg); }
+  .contrast { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .contrast dd + dt { margin-top: 8px; }
+}
+
 @media (max-width: 760px) {
   .layout { grid-template-columns: 1fr; gap: 30px; }
   .nav__list { display: flex; flex-wrap: wrap; gap: 4px; }

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ paper.title }} - Hugging Face Papers 週次ダイジェスト</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaisei+Tokumin:wght@400;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="{{ static_root }}/css/style.css?v={{ css_version }}">
+</head>
+<body>
+<div class="page page--narrow">
+
+  <header class="masthead masthead--compact">
+    <p class="masthead__title"><a href="../index.html">Hugging Face Papers 週次ダイジェスト</a></p>
+    <div class="masthead__rule"><div></div><div></div></div>
+  </header>
+
+  <a class="back" href="../weeks/{{ week.week_start }}.html">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+    {{ week.range_label }}の週に戻る
+  </a>
+
+  <header class="ex-head">
+    <div class="ex-head__eyebrow"><span class="ex-head__rank">{{ "%02d"|format(rank) }}</span><span>{{ week.range_label }}の週 第{{ rank }}位</span></div>
+    <h1 class="ex-head__title">{{ paper.title }}</h1>
+    <div class="ex-head__meta">{{ paper.all_authors | join('・') }}<span class="sep">|</span><span class="upvotes">{{ paper.upvotes }}</span> いいね</div>
+    <div class="ex-links">
+      <a href="{{ paper.url }}" target="_blank" rel="noopener">Hugging Face Papers
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+      <a href="https://arxiv.org/abs/{{ paper.id }}" target="_blank" rel="noopener">arXiv
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+    </div>
+    <div class="paper__highlight">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.4 1 2.5h6c0-1.1.4-1.9 1-2.5A6 6 0 0 0 12 3z"/></svg>
+      <span>{{ paper.highlight_ja }}</span>
+    </div>
+  </header>
+
+  {% if paper.explainer %}
+  {% set d = paper.explainer.diagram %}
+  <section class="ex-section" aria-labelledby="s-overview">
+    <p class="ex-section__label">OVERVIEW</p>
+    <h2 class="ex-section__title" id="s-overview">概要図</h2>
+    <p class="ex-section__lead">この論文が何に困っていて、どう解き、何ができるようになったか。</p>
+
+    <div class="flow">
+      {% for key, tag in [("problem", "課題"), ("approach", "アプローチ"), ("outcome", "成果")] %}
+      {% if not loop.first %}
+      <div class="flow__arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+      {% endif %}
+      <div class="flow__step{% if key == 'approach' %} is-approach{% endif %}">
+        <div class="flow__tag">{{ tag }}</div>
+        <p class="flow__head">{{ d[key].head }}</p>
+        <p class="flow__body">{{ d[key].body }}</p>
+      </div>
+      {% endfor %}
+    </div>
+
+    <dl class="contrast">
+      <dt>従来</dt>
+      <dd>{{ d.before }}</dd>
+      <dt class="is-new">この論文</dt>
+      <dd>{{ d.after }}</dd>
+    </dl>
+  </section>
+
+  <section class="ex-section" aria-labelledby="s-concepts">
+    <p class="ex-section__label">BACKGROUND</p>
+    <h2 class="ex-section__title" id="s-concepts">この論文を読むための基礎知識</h2>
+    <p class="ex-section__lead">要約を読む前に押さえておくと理解しやすくなる用語です。</p>
+
+    <div class="concepts">
+      {% for c in paper.explainer.concepts %}
+      <article class="concept">
+        <h3 class="concept__term">{{ c.term }}<span class="concept__en">{{ c.term_en }}</span></h3>
+        <p class="concept__body">{{ c.body }}</p>
+        <p class="concept__analogy">{{ c.analogy }}</p>
+        <div class="concept__here"><strong>この論文では</strong>{{ c.in_paper }}</div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="ex-section" aria-labelledby="s-summary">
+    <p class="ex-section__label">SUMMARY</p>
+    <h2 class="ex-section__title" id="s-summary">要約</h2>
+    <p class="paper__summary">{{ paper.summary_ja }}</p>
+  </section>
+
+  <footer class="colophon">
+    {% if paper.explainer %}概要図・基礎知識・{% endif %}見どころコメント・要約は、論文のアブストラクトをもとに Claude API で生成しています。正確な内容は原論文で確認してください。
+  </footer>
+</div>
+</body>
+</html>

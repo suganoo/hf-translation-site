@@ -9,6 +9,10 @@ on:
         description: '過去週の埋め戻し: 対象週の月曜日をスペース区切りで指定 (例: 2026-08-31 2026-09-07)。空なら通常実行'
         required: false
         default: ''
+      backfill_explainers:
+        description: '既存の全週に解説ページ用データ(概要図・基礎知識)を追加する'
+        type: boolean
+        default: false
   push:
     branches: [main]      # テンプレート・CSS変更時はサイトの再ビルドのみ
 
@@ -34,7 +38,9 @@ jobs:
       - name: Generate weekly snapshot
         if: github.event_name != 'push'
         run: |
-          if [ -n "$WEEKS" ]; then
+          if [ "$BACKFILL_EXPLAINERS" = "true" ]; then
+            python generate_snapshot.py --backfill-explainers
+          elif [ -n "$WEEKS" ]; then
             for w in $WEEKS; do python generate_snapshot.py --week "$w"; done
           else
             python generate_snapshot.py
@@ -42,6 +48,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           WEEKS: ${{ inputs.weeks }}
+          BACKFILL_EXPLAINERS: ${{ inputs.backfill_explainers }}
 
       - name: Commit and push data
         if: github.event_name != 'push'
