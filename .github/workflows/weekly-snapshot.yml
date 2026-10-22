@@ -47,6 +47,10 @@ jobs:
           fi
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Langfuse へのトレース送信(未登録なら送信しない)
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+          LANGFUSE_BASE_URL: ${{ vars.LANGFUSE_BASE_URL || 'https://cloud.langfuse.com' }}
           WEEKS: ${{ inputs.weeks }}
           BACKFILL_EXPLAINERS: ${{ inputs.backfill_explainers }}
 

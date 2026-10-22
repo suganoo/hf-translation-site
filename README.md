@@ -27,6 +27,8 @@ python build_site.py                           # site/ にHTMLを出力
 python -m http.server -d site 8000             # http://localhost:8000 で確認
 ```
 
+`LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_BASE_URL` を設定して実行すると、Claude API の呼び出し(プロンプト・応答・トークン数・モデル)が Langfuse に送られる。論文ごとに1トレース(見どころ・要約・解説の3スパン)になり、週ごとのセッションにまとまる。各スパンの metadata の `prompt_hash` で、どのプロンプトで生成したかを見分けられる。未設定なら何も送らない。
+
 API キーなしで動作確認だけしたい場合は `--skip-llm --data-dir /tmp/test` を付けると、要約をダミー文にして別ディレクトリに出力する。
 
 ## GitHub での公開手順
@@ -35,5 +37,6 @@ API キーなしで動作確認だけしたい場合は `--skip-llm --data-dir /
 2. Settings → Secrets and variables → Actions で `ANTHROPIC_API_KEY` を登録
 3. Settings → Pages → Source を **GitHub Actions** に設定
 4. Actions タブから「Weekly Paper Snapshot」を手動実行(Run workflow)して初回公開
+5. (任意)Langfuse でトレースを見る場合は、Langfuse のプロジェクトで API キーを発行し、Secrets に `LANGFUSE_PUBLIC_KEY` と `LANGFUSE_SECRET_KEY` を登録する。EU 以外のリージョン(例: `https://jp.cloud.langfuse.com`)や自前ホストを使う場合は、Variables に `LANGFUSE_BASE_URL` も登録する
 
 以降は毎週月曜 00:00 UTC(日本時間 9:00)に自動更新される。テンプレートやCSSを変更して main に push すると、データ生成なしでサイトだけ再ビルドされる。

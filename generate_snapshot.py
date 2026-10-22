@@ -12,7 +12,10 @@ data/weekly/{week_start}.json に保存する。
 """
 
 import argparse
+import contextlib
+import hashlib
 import json
+import os
 import sys
 import time
 import urllib.request
@@ -158,6 +161,40 @@ DUMMY_EXPLAINER = {
 }
 
 
+PROMPT_HASHES = {
+    name: hashlib.sha256(prompt.encode()).hexdigest()[:8]
+    for name, prompt in [("highlight", HIGHLIGHT_PROMPT), ("summary", SUMMARY_PROMPT), ("explainer", EXPLAINER_PROMPT)]
+}
+
+_langfuse = None
+
+
+def make_client():
+    """Claude API クライアントを作る。LANGFUSE_* が設定されていれば呼び出しを Langfuse に送る。"""
+    global _langfuse
+    import anthropic
+    if os.environ.get("LANGFUSE_PUBLIC_KEY"):
+        from langfuse import get_client
+        # OTel の TracerProvider を登録するので、Anthropic クライアントより先に作る
+        _langfuse = get_client()
+    # SDK が出す OpenTelemetry スパンにプロンプトと応答の本文も含める(Langfuse 未設定時は何も送られない)
+    return anthropic.Anthropic(open_telemetry={"traces": {"content_mode": "content"}})  # ANTHROPIC_API_KEY を環境変数から読む
+
+
+def trace_week(week: str, mode: str):
+    """この中で作られるトレースを週ごとの Langfuse セッションにまとめる。"""
+    if _langfuse is None:
+        return contextlib.nullcontext()
+    from langfuse import propagate_attributes
+    return propagate_attributes(session_id=f"week-{week}", tags=[mode], metadata={"model": MODEL})
+
+
+def trace_span(name: str, **kwargs):
+    if _langfuse is None:
+        return contextlib.nullcontext()
+    return _langfuse.start_as_current_observation(as_type="span", name=name, **kwargs)
+
+
 def get_confirmable_week_start(today: date) -> date:
     this_monday = today - timedelta(days=today.weekday())
     return this_monday - timedelta(weeks=2)
@@ -221,14 +258,16 @@ def ask_claude(client, prompt: str, schema: dict | None = None) -> str:
 
 
 def generate_highlight_and_summary(client, title: str, abstract: str) -> dict:
-    return {
-        "highlight_ja": ask_claude(client, HIGHLIGHT_PROMPT.format(title=title, abstract=abstract)),
-        "summary_ja": ask_claude(client, SUMMARY_PROMPT.format(title=title, abstract=abstract)),
-    }
+    with trace_span("highlight", metadata={"prompt_hash": PROMPT_HASHES["highlight"]}):
+        highlight = ask_claude(client, HIGHLIGHT_PROMPT.format(title=title, abstract=abstract))
+    with trace_span("summary", metadata={"prompt_hash": PROMPT_HASHES["summary"]}):
+        summary = ask_claude(client, SUMMARY_PROMPT.format(title=title, abstract=abstract))
+    return {"highlight_ja": highlight, "summary_ja": summary}
 
 
 def generate_explainer(client, title: str, abstract: str) -> dict:
-    text = ask_claude(client, EXPLAINER_PROMPT.format(title=title, abstract=abstract), EXPLAINER_SCHEMA)
+    with trace_span("explainer", metadata={"prompt_hash": PROMPT_HASHES["explainer"]}):
+        text = ask_claude(client, EXPLAINER_PROMPT.format(title=title, abstract=abstract), EXPLAINER_SCHEMA)
     explainer = json.loads(text)
     explainer["concepts"] = explainer["concepts"][:3]
     return explainer
@@ -249,7 +288,9 @@ def backfill_explainers(client, data_dir: Path, cache: dict, cache_path: Path) -
             entry = cache.setdefault(p["id"], {})
             if "explainer" not in entry:
                 print(f"  [{snapshot_path.stem}] generating explainer: {p['title'][:60]}")
-                entry["explainer"] = generate_explainer(client, p["title"], fetch_abstract(p["id"]))
+                with trace_week(snapshot_path.stem, "backfill-explainers"), \
+                        trace_span(f"paper {p['id']}", input={"title": p["title"]}):
+                    entry["explainer"] = generate_explainer(client, p["title"], fetch_abstract(p["id"]))
                 save_json(cache_path, cache)
             p["explainer"] = entry["explainer"]
             changed = True
@@ -279,9 +320,8 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.backfill_explainers:
-        import anthropic
         cache_path = args.data_dir / "summary_cache.json"
-        backfill_explainers(anthropic.Anthropic(), args.data_dir, load_json(cache_path, {}), cache_path)
+        backfill_explainers(make_client(), args.data_dir, load_json(cache_path, {}), cache_path)
         return 0
 
     today = date.today()
@@ -305,10 +345,7 @@ def main() -> int:
         return 1
 
     cache = load_json(cache_path, {})
-    client = None
-    if not args.skip_llm:
-        import anthropic
-        client = anthropic.Anthropic()  # ANTHROPIC_API_KEY を環境変数から読む
+    client = None if args.skip_llm else make_client()
 
     for rank, p in enumerate(top, 1):
         if args.skip_llm:
@@ -316,14 +353,19 @@ def main() -> int:
             cache_entry = {"explainer": DUMMY_EXPLAINER, **cache_entry}
         else:
             cache_entry = cache.setdefault(p["id"], {})
-            if "summary_ja" not in cache_entry:
-                print(f"  [{rank}] generating: {p['title'][:60]}")
-                cache_entry.update(generate_highlight_and_summary(client, p["title"], p["summary_en"]))
-                save_json(cache_path, cache)  # 途中で失敗しても生成済み分は残す
-            if "explainer" not in cache_entry:
-                print(f"  [{rank}] generating explainer: {p['title'][:60]}")
-                cache_entry["explainer"] = generate_explainer(client, p["title"], p["summary_en"])
-                save_json(cache_path, cache)
+            # キャッシュ済みで LLM を呼ばない論文は空のトレースを作らない
+            needs_llm = "summary_ja" not in cache_entry or "explainer" not in cache_entry
+            paper_span = (trace_span(f"paper {p['id']}", input={"title": p["title"], "rank": rank})
+                          if needs_llm else contextlib.nullcontext())
+            with trace_week(week_start.isoformat(), "weekly"), paper_span:
+                if "summary_ja" not in cache_entry:
+                    print(f"  [{rank}] generating: {p['title'][:60]}")
+                    cache_entry.update(generate_highlight_and_summary(client, p["title"], p["summary_en"]))
+                    save_json(cache_path, cache)  # 途中で失敗しても生成済み分は残す
+                if "explainer" not in cache_entry:
+                    print(f"  [{rank}] generating explainer: {p['title'][:60]}")
+                    cache_entry["explainer"] = generate_explainer(client, p["title"], p["summary_en"])
+                    save_json(cache_path, cache)
         p["highlight_ja"] = cache_entry["highlight_ja"]
         p["summary_ja"] = cache_entry["summary_ja"]
         p["explainer"] = cache_entry["explainer"]
